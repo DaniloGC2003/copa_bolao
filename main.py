@@ -232,15 +232,6 @@ if uploaded_file is not None:
 
 '''
 
-
-
-
-
-
-
-
-
-
 print("pontuacoes participantes: ")
 print(pontuacoes_participantes)
 pontuacoes_participantes_ordenado = sorted(pontuacoes_participantes, key=lambda x: x["pontuacao_total"], reverse=True)
