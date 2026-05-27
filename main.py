@@ -1,6 +1,5 @@
 import pandas as pd
 from pathlib import Path
-import streamlit as st
 import zipfile
 import io
 
@@ -9,44 +8,6 @@ import zipfile
 import tempfile
 from pathlib import Path
 
-st.title("ZIP File Reader")
-
-# Upload ZIP file
-uploaded_file = st.file_uploader(
-    "Upload a ZIP file",
-    type=["zip"]
-)
-
-if uploaded_file is not None:
-
-    st.success(f"Uploaded: {uploaded_file.name}")
-
-    # Create temporary folder
-    with tempfile.TemporaryDirectory() as temp_dir:
-
-        # Save uploaded ZIP temporarily
-        zip_path = Path(temp_dir) / uploaded_file.name
-
-        with open(zip_path, "wb") as f:
-            f.write(uploaded_file.read())
-
-        # Extract ZIP
-        extract_path = Path(temp_dir) / "extracted"
-
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(extract_path)
-
-        st.write("Files found inside ZIP:")
-
-        # Iterate through extracted contents
-        for item in extract_path.rglob("*"):
-
-            if item.is_file():
-                st.write(f"📄 {item.relative_to(extract_path)}")
-
-            elif item.is_dir():
-                st.write(f"📁 {item.relative_to(extract_path)}")
-'''
 NUMERO_REGRAS = 6
 NUMERO_PARTIDAS_GRUPOS = 72
 CONDICAO_ACERTOU_PLACAR = "Acertou placar"
@@ -58,36 +19,12 @@ MULTIPLICADOR_QUARTAS = "Multiplicador quartas"
 EMPATE = "EMPATE"
 regras = []
 pontuacoes_participantes = []
-
-# Ler arquivo de regras
-df = pd.read_excel(
-    "regras_pontuacao.xlsx",
-    engine="openpyxl"
-)
-# Extrair regras
-for it in range(NUMERO_REGRAS):
-    regras.append({"regra":  df.iloc[it+2,0],
-                   "pontos": df.iloc[it+2,1]})
 pontos_acertou_placar = None
 pontos_acertou_vencedor = None
 pontos_acertou_empate = None
 multiplicador_terceiro_final = None
 multiplicador_semifinais = None
 multiplicador_quartas = None
-
-for d in regras:
-    if d["regra"] == CONDICAO_ACERTOU_PLACAR:
-        pontos_acertou_placar = d["pontos"]
-    if d["regra"] == CONDICAO_ACERTOU_VENCEDOR:
-        pontos_acertou_vencedor = d["pontos"]
-    if d["regra"] == CONDICAO_ACERTOU_EMPATE:
-        pontos_acertou_empate = d["pontos"]
-    if d["regra"] == MULTIPLICADOR_TERCEIRO_FINAL:
-        multiplicador_terceiro_final = d["pontos"]
-    if d["regra"] == MULTIPLICADOR_SEMIFINAIS:
-        multiplicador_semifinais = d["pontos"]
-    if d["regra"] == MULTIPLICADOR_QUARTAS:
-        multiplicador_quartas = d["pontos"]
 
 def exec_round(gabarito, diretorio_participantes, numero_partidas, multiplicador):
     # Ler arquivo de resultado oficial
@@ -181,19 +118,125 @@ def exec_round(gabarito, diretorio_participantes, numero_partidas, multiplicador
     print(pontuacoes_participantes)
     print()
 
+st.title("ZIP Spreadsheet Reader")
 
-print("EXEC FASE DE GRUPOS")
-exec_round("resultado_oficial_fase_grupos.xlsx", "planilhas_participantes/fase_de_grupos", NUMERO_PARTIDAS_GRUPOS, 1)
-print("EXEC FASE DE 32")
-exec_round("resultado_oficial_rodada_32.xlsx", "planilhas_participantes/fase_32", 16, 1)
-print("EXEC OITAVAS")
-exec_round("resultado_oficial_oitavas.xlsx", "planilhas_participantes/oitavas", 8, 1)
-print("EXEC QUARTAS")
-exec_round("resultado_oficial_quartas.xlsx", "planilhas_participantes/quartas", 4, 1)
-print("EXEC SEMIFINAIS")
-exec_round("resultado_oficial_semifinais.xlsx", "planilhas_participantes/semifinais", 2, 1)
-print("EXEC TERCEIRO LUGAR E FINAL")
-exec_round("resultado_oficial_terceiro_lugar_final.xlsx", "planilhas_participantes/terceiro_lugar_final", 2, multiplicador_terceiro_final)
+uploaded_file = st.file_uploader(
+    "Upload a ZIP file",
+    type=["zip"]
+)
+
+if uploaded_file is not None:
+
+    st.success(f"Uploaded: {uploaded_file.name}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+
+        # Save uploaded ZIP
+        zip_path = Path(temp_dir) / uploaded_file.name
+
+        with open(zip_path, "wb") as f:
+            f.write(uploaded_file.read())
+
+        # Extract ZIP
+        extract_path = Path(temp_dir) / "extracted"
+
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(extract_path)
+
+        # Search for xlsx files
+        regras_file = None
+        resultado_oficial_fase_grupos = None
+        resultado_oficial_rodada_32 = None
+        resultado_oficial_oitavas = None
+        resultado_oficial_quartas = None
+        resultado_oficial_semifinais = None
+        resultado_oficial_terceiro_lugar_final = None
+
+        # Search extracted files
+        for file_obj in extract_path.rglob("*.xlsx"):
+
+            match file_obj.name:
+
+                case "regras_pontuacao.xlsx":
+                    regras_file = file_obj
+
+                case "resultado_oficial_fase_grupos.xlsx":
+                    resultado_oficial_fase_grupos = file_obj
+
+                case "resultado_oficial_rodada_32.xlsx":
+                    resultado_oficial_rodada_32 = file_obj
+
+                case "resultado_oficial_oitavas.xlsx":
+                    resultado_oficial_oitavas = file_obj
+
+                case "resultado_oficial_quartas.xlsx":
+                    resultado_oficial_quartas = file_obj
+
+                case "resultado_oficial_semifinais.xlsx":
+                    resultado_oficial_semifinais = file_obj
+
+                case "resultado_oficial_terceiro_lugar_final.xlsx":
+                    resultado_oficial_terceiro_lugar_final = file_obj
+
+        if regras_file is None:
+            st.error("regras_pontuacao.xlsx was not found inside the ZIP.")
+
+        else:
+            st.success(f"Found file: {regras_file.name}")
+
+            # Read spreadsheet with pandas
+            df = pd.read_excel(
+                regras_file,
+                engine="openpyxl"
+            )
+            # Extrair regras
+            for it in range(NUMERO_REGRAS):
+                regras.append({"regra": df.iloc[it + 2, 0],
+                               "pontos": df.iloc[it + 2, 1]})
+            pontos_acertou_placar = None
+            pontos_acertou_vencedor = None
+            pontos_acertou_empate = None
+            multiplicador_terceiro_final = None
+            multiplicador_semifinais = None
+            multiplicador_quartas = None
+            for d in regras:
+                if d["regra"] == CONDICAO_ACERTOU_PLACAR:
+                    pontos_acertou_placar = d["pontos"]
+                if d["regra"] == CONDICAO_ACERTOU_VENCEDOR:
+                    pontos_acertou_vencedor = d["pontos"]
+                if d["regra"] == CONDICAO_ACERTOU_EMPATE:
+                    pontos_acertou_empate = d["pontos"]
+                if d["regra"] == MULTIPLICADOR_TERCEIRO_FINAL:
+                    multiplicador_terceiro_final = d["pontos"]
+                if d["regra"] == MULTIPLICADOR_SEMIFINAIS:
+                    multiplicador_semifinais = d["pontos"]
+                if d["regra"] == MULTIPLICADOR_QUARTAS:
+                    multiplicador_quartas = d["pontos"]
+            st.write(pontos_acertou_placar)
+            st.write(pontos_acertou_vencedor)
+            st.write(pontos_acertou_empate)
+            st.write(multiplicador_terceiro_final)
+            st.write(multiplicador_semifinais)
+            st.write(multiplicador_quartas)
+
+            print("EXEC FASE DE GRUPOS")
+            exec_round(resultado_oficial_fase_grupos, extract_path / "planilhas_participantes" / "fase_de_grupos",
+                       NUMERO_PARTIDAS_GRUPOS, 1)
+
+
+
+
+
+
+
+
+'''
+
+
+
+
+
+
 
 
 
