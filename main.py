@@ -1,10 +1,6 @@
 import pandas as pd
-import streamlit as st
-import zipfile
-import tempfile
 from pathlib import Path
 from openpyxl import load_workbook
-import math
 
 NUMERO_REGRAS = 6
 NUMERO_PARTIDAS_GRUPOS = 72
@@ -49,6 +45,14 @@ for d in regras:
         multiplicador_semifinais = d["pontos"]
     if d["regra"] == MULTIPLICADOR_QUARTAS:
         multiplicador_quartas = d["pontos"]
+print(f"regras:")
+print(pontos_acertou_placar)
+print(pontos_acertou_vencedor)
+print(pontos_acertou_empate)
+print(multiplicador_terceiro_final)
+print(multiplicador_semifinais)
+print(multiplicador_quartas)
+
 
 def exec_round(gabarito, diretorio_participantes, numero_partidas, multiplicador, coluna_pontos):
     # Ler arquivo de resultado oficial
@@ -65,7 +69,7 @@ def exec_round(gabarito, diretorio_participantes, numero_partidas, multiplicador
                          "score_2": file.iloc[i + 3, 6],
                          "vencedor": 0
                          }
-        if math.isnan(partida_atual["score_1"]) or math.isnan(partida_atual["score_2"]):
+        if pd.isna(partida_atual["score_1"]) or pd.isna(partida_atual["score_2"]):
             partida_atual["vencedor"] = "?"
         elif partida_atual["score_1"] > partida_atual["score_2"]:
             partida_atual["vencedor"] = partida_atual["equipe_1"]
@@ -75,9 +79,9 @@ def exec_round(gabarito, diretorio_participantes, numero_partidas, multiplicador
             if numero_partidas == NUMERO_PARTIDAS_GRUPOS:
                 partida_atual["vencedor"] = "EMPATE"
             else:
-                if math.isnan(file.iloc[i + 3, 8]) and (file.iloc[i + 3, 9] == "x" or file.iloc[i + 3, 9] == "X"):
+                if pd.isna(file.iloc[i + 3, 8]) and (file.iloc[i + 3, 9] == "x" or file.iloc[i + 3, 9] == "X"):
                     partida_atual["vencedor"] = partida_atual["equipe_2"]
-                elif math.isnan(file.iloc[i + 3, 9]) and (file.iloc[i + 3, 8] == "x" or file.iloc[i + 3, 8] == "X"):
+                elif pd.isna(file.iloc[i + 3, 9]) and (file.iloc[i + 3, 8] == "x" or file.iloc[i + 3, 8] == "X"):
                     partida_atual["vencedor"] = partida_atual["equipe_1"]
                 else:
                     partida_atual["vencedor"] = "?"
@@ -98,8 +102,6 @@ def exec_round(gabarito, diretorio_participantes, numero_partidas, multiplicador
                 engine="openpyxl"
             )
             workbook = load_workbook(arquivo)
-            print("SHEETS: ")
-            print(workbook.sheetnames)
             sheet = workbook["Palpites"]
             nome_participante = file.iloc[0, 2]
             print(f"\tContando pontos de {nome_participante}")
@@ -111,7 +113,7 @@ def exec_round(gabarito, diretorio_participantes, numero_partidas, multiplicador
                     "score_2": file.iloc[i + 3, 6],
                     "vencedor": 0
                 }
-                if math.isnan(previsao_participante["score_1"]) or math.isnan(previsao_participante["score_2"]):
+                if pd.isna(previsao_participante["score_1"]) or pd.isna(previsao_participante["score_2"]):
                     previsao_participante["vencedor"] = "?"
                 elif previsao_participante["score_1"] > previsao_participante["score_2"]:
                     previsao_participante["vencedor"] = previsao_participante["equipe_1"]
@@ -145,25 +147,25 @@ def exec_round(gabarito, diretorio_participantes, numero_partidas, multiplicador
                             "score_2"] == partidas[i]["score_2"]:
                             pontuacao_total += pontos_acertou_placar * multiplicador
                             acertou = True
-                            print("\t\tacertou placar")
-                            pontos_na_partida += 3
+                            print(f"\t\tacertou placar. +{pontos_acertou_placar * multiplicador} pontos")
+                            pontos_na_partida += pontos_acertou_placar * multiplicador
                         # Caso participante tenha acertado vencedor
                         if previsao_participante["vencedor"] == partidas[i]["vencedor"] and partidas[i][
                             "vencedor"] != EMPATE:
                             pontuacao_total += pontos_acertou_vencedor * multiplicador
                             acertou = True
-                            print("\t\tacertou vencedor")
-                            pontos_na_partida += 3
+                            print(f"\t\tacertou vencedor. +{pontos_acertou_placar * multiplicador} pontos")
+                            pontos_na_partida += pontos_acertou_placar * multiplicador
                         # Caso participante tenha acertado empate
                         if previsao_participante["vencedor"] == partidas[i]["vencedor"] and partidas[i][
                             "vencedor"] == EMPATE:
                             pontuacao_total += pontos_acertou_empate * multiplicador
                             acertou = True
-                            print("\t\tacertou empate")
-                            pontos_na_partida += 3
+                            print(f"\t\tacertou empate. +{pontos_acertou_placar * multiplicador} pontos")
+                            pontos_na_partida += pontos_acertou_placar * multiplicador
                         if not acertou:
                             print("\t\tnao acertou")
-                        print("escrevendo pontos na planilha")
+                        print(f"\t\tGanhou {pontos_na_partida} pontos nessa partida. Escrevendo pontos na planilha")
                         sheet.cell(row=i+5, column=coluna_pontos).value = pontos_na_partida
                     else:
                         print(
@@ -202,10 +204,10 @@ exec_round("resultado_oficial_oitavas.xlsx", "planilhas_participantes/oitavas",
            8, 1, POSICAO_COLUNA_PONTOS_ELIMINATORIAS)
 print("EXEC QUARTAS")
 exec_round("resultado_oficial_quartas.xlsx", "planilhas_participantes/quartas",
-           4, 1, POSICAO_COLUNA_PONTOS_ELIMINATORIAS)
+           4, multiplicador_quartas, POSICAO_COLUNA_PONTOS_ELIMINATORIAS)
 print("EXEC SEMIFINAIS")
 exec_round("resultado_oficial_semifinais.xlsx", "planilhas_participantes/semifinais",
-           2, 1, POSICAO_COLUNA_PONTOS_ELIMINATORIAS)
+           2, multiplicador_semifinais, POSICAO_COLUNA_PONTOS_ELIMINATORIAS)
 print("EXEC TERCEIRO LUGAR E FINAL")
 exec_round("resultado_oficial_terceiro_lugar_final.xlsx", "planilhas_participantes/terceiro_lugar_final",
            2, multiplicador_terceiro_final, POSICAO_COLUNA_PONTOS_ELIMINATORIAS)
